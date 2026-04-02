@@ -11,25 +11,36 @@ from app.models import init_db, SessionLocal, Lead, Message, BusinessProfile, Kn
 from app.ai_service import ai_service
 from app.whatsapp_service import whatsapp_service
 
-# Load env but keep going if .env is missing (Vercel uses its own settings)
+# Load env safely
 load_dotenv()
 
-app = FastAPI(title="WhatsApp AI Manager Pro")
+app = FastAPI(title="WhatsApp AI Manager Business Pro")
 
-# Ensure BASE_DIR is correct for both local and Vercel
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-static_path = os.path.join(BASE_DIR, "static")
-templates_path = os.path.join(BASE_DIR, "templates")
+# --- PATH LOGIC START ---
+# We calculate paths relative to the root of the project to be safe for Vercel.
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(APP_DIR)
+TEMPLATES_DIR = os.path.join(APP_DIR, "templates")
+STATIC_DIR = os.path.join(APP_DIR, "static")
 
-# Debugging logs for Vercel startup
-print(f"Startup - BASE_DIR: {BASE_DIR}")
-print(f"Startup - Templates: {templates_path}")
+# If on Vercel, paths can be tricky. We'll check multiple locations if needed.
+if not os.path.exists(TEMPLATES_DIR):
+    TEMPLATES_DIR = "/var/task/app/templates" # Vercel default task path
 
-# Optional static mount
-if os.path.exists(static_path):
-    app.mount("/static", StaticFiles(directory=static_path), name="static")
+if not os.path.exists(STATIC_DIR):
+    STATIC_DIR = "/var/task/app/static"
 
-templates = Jinja2Templates(directory=templates_path)
+# Mount Static if it exists
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Initialize Templates
+if os.path.exists(TEMPLATES_DIR):
+    templates = Jinja2Templates(directory=TEMPLATES_DIR)
+else:
+    # This will be caught by the except block in api/index.py if it crashes here
+    raise Exception(f"CRITICAL: Templates directory not found at {TEMPLATES_DIR}")
+# --- PATH LOGIC END ---
 
 def get_db():
     db = SessionLocal()
@@ -38,8 +49,8 @@ def get_db():
     finally:
         db.close()
 
-# Ensure database is set up on cold-start
-def setup_initial_data():
+# Startup Database Initialization
+def startup_init():
     try:
         init_db()
         db = SessionLocal()
@@ -58,8 +69,8 @@ def setup_initial_data():
     except Exception as e:
         print(f"Startup DB Error: {e}")
 
-# Run setup
-setup_initial_data()
+# Run once during module import
+startup_init()
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -75,9 +86,10 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "leads": leads
         })
     except Exception as e:
-        # Fallback for dashboard error
+        import traceback
+        err = traceback.format_exc()
         return HTMLResponse(
-            content=f"<html><body><h1>Dashboard Error</h1><p>{str(e)}</p></body></html>",
+            content=f"<html><body style='padding:50px; font-family:sans-serif;'><h1>❌ Dashboard Error</h1><pre style='background:#f1f1f1; padding:20px;'>{err}</pre></body></html>",
             status_code=500
         )
 
@@ -105,7 +117,7 @@ async def update_wizard(
         profile.greeting_message = greeting_message
         db.commit()
     except Exception as e:
-        print(f"Wizard update error: {e}")
+        print(f"Update Wizard Error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload-knowledge")
@@ -117,7 +129,7 @@ async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(g
         db.add(new_file)
         db.commit()
     except Exception as e:
-        print(f"Knowledge upload error: {e}")
+        print(f"Upload Error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/get-qr")
@@ -125,7 +137,7 @@ async def get_qr():
     try:
         return await whatsapp_service.get_qr_code("Main")
     except Exception as e:
-        return {"error": f"Gateway Error: {str(e)}"}
+        return {"error": str(e)}
 
 @app.post("/webhook")
 async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
