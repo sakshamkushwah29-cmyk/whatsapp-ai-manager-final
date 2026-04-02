@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI WhatsApp Manager - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans" x-data="{ tab: 'wizard' }">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="w-64 bg-green-700 text-white flex flex-col shadow-xl">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <span class="mr-2">💬</span> AI Manager
+                </h1>
+                <p class="text-xs text-green-200 mt-1 uppercase tracking-widest font-semibold">Business Pro</p>
+            </div>
+            
+            <nav class="flex-1 mt-4 px-4 space-y-2">
+                <button @click="tab = 'wizard'" :class="tab === 'wizard' ? 'bg-green-800 font-bold' : 'hover:bg-green-600'" class="w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-3">🪄</span> Prompt Wizard
+                </button>
+                <button @click="tab = 'knowledge'" :class="tab === 'knowledge' ? 'bg-green-800 font-bold' : 'hover:bg-green-600'" class="w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-3">📚</span> Knowledge Base
+                </button>
+                <button @click="tab = 'connect'" :class="tab === 'connect' ? 'bg-green-800 font-bold' : 'hover:bg-green-600'" class="w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-3">📲</span> Link WhatsApp
+                </button>
+                <button @click="tab = 'leads'" :class="tab === 'leads' ? 'bg-green-800 font-bold' : 'hover:bg-green-600'" class="w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center">
+                    <span class="mr-3">👥</span> Leads & Inbox
+                </button>
+            </nav>
+            
+            <div class="p-6 bg-green-800">
+                <div class="flex items-center text-xs space-x-2">
+                    <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                    <span>Local Server: :3000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto p-10 bg-white">
+            
+            <!-- Wizard Tab -->
+            <div x-show="tab === 'wizard'" x-transition>
+                <header class="mb-10">
+                    <h2 class="text-3xl font-bold text-gray-900">AI Prompt Wizard</h2>
+                    <p class="text-gray-500">Define how your AI should speak and handle leads.</p>
+                </header>
+
+                <form action="/update-wizard" method="POST" class="max-w-3xl space-y-8">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="col-span-1">
+                            <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Brand Name</label>
+                            <input type="text" name="brand_name" value="{{ profile.brand_name }}" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="e.g. Acme Solar" required>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Website URL</label>
+                            <input type="url" name="website_link" value="{{ profile.website_link }}" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="https://..." required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">What is the AI's primary goal?</label>
+                        <textarea name="primary_goal" rows="2" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="e.g. Schedule a demo, answer product questions, qualify sales leads..." required>{{ profile.primary_goal }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">AI Brand Tone & Personality</label>
+                        <input type="text" name="brand_tone" value="{{ profile.brand_tone }}" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="e.g. Friendly, professional, concise, enthusiastic..." required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Common Objections & How to handle them</label>
+                        <textarea name="common_objections" rows="3" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="e.g. If they say it's too expensive, explain the long-term ROI...">{{ profile.common_objections }}</textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Custom Greeting Message</label>
+                        <textarea name="greeting_message" rows="2" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 focus:border-green-500 focus:outline-none transition-all" placeholder="e.g. Hello! Thanks for reaching out to Acme. How can I assist you today?" required>{{ profile.greeting_message }}</textarea>
+                    </div>
+
+                    <button type="submit" class="bg-green-600 text-white font-bold py-4 px-10 rounded-xl shadow-lg hover:bg-green-700 transform hover:-translate-y-1 transition-all duration-200">
+                        🚀 Save AI Instructions
+                    </button>
+                </form>
+            </div>
+
+            <!-- Knowledge Tab -->
+            <div x-show="tab === 'knowledge'" x-transition>
+                <header class="mb-10">
+                    <h2 class="text-3xl font-bold text-gray-900">Knowledge Base</h2>
+                    <p class="text-gray-500">Upload documents the AI should study to answer questions.</p>
+                </header>
+
+                <div class="max-w-3xl space-y-8">
+                    <div class="border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center bg-gray-50">
+                        <form action="/upload-knowledge" method="POST" enctype="multipart/form-data" class="space-y-4">
+                            <div class="text-5xl mb-4">📂</div>
+                            <h3 class="text-xl font-bold">Upload Knowledge Files</h3>
+                            <p class="text-gray-500 mb-6">Drag and drop or browse files (.txt, .pdf, .docx)</p>
+                            <input type="file" name="file" class="hidden" id="fileInput" onchange="this.form.submit()">
+                            <label for="fileInput" class="cursor-pointer inline-block bg-white border-2 border-green-600 text-green-600 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition-all">
+                                Select File
+                            </label>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="font-bold">Managed Documents</h3>
+                            <span class="text-xs font-bold text-green-600 uppercase">{{ files|length }} Files</span>
+                        </div>
+                        <div class="divide-y divide-gray-100">
+                            {% for file in files %}
+                            <div class="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600 mr-4">📝</div>
+                                    <div>
+                                        <p class="font-bold text-gray-800">{{ file.filename }}</p>
+                                        <p class="text-xs text-gray-400">Added on {{ file.created_at.strftime('%Y-%m-%d') }}</p>
+                                    </div>
+                                </div>
+                                <button class="text-red-400 hover:text-red-600 p-2">🗑️</button>
+                            </div>
+                            {% else %}
+                            <div class="p-12 text-center text-gray-400">No documents uploaded yet.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connect Tab -->
+            <div x-show="tab === 'connect'" x-transition>
+                <header class="mb-10">
+                    <h2 class="text-3xl font-bold text-gray-900">Link WhatsApp</h2>
+                    <p class="text-gray-500">Connect your WhatsApp Business number to the AI engine.</p>
+                </header>
+
+                <div class="max-w-4xl grid grid-cols-2 gap-10">
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-xl font-bold mb-6">Connection Method 1: QR Scan</h3>
+                        <p class="text-sm text-gray-600 mb-8 leading-relaxed">
+                            The most stable way to link. Open WhatsApp on your business phone, go to **Linked Devices**, and scan the QR code that will appear below.
+                        </p>
+                        
+                        <div id="qr-container" class="aspect-square bg-gray-100 rounded-xl flex items-center justify-center border-2 border-gray-50 mb-6">
+                            <div class="text-center p-6">
+                                <button onclick="fetchQr()" class="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow hover:bg-green-700 transition-all">
+                                    Generate Link QR
+                                </button>
+                                <p class="text-xs text-gray-400 mt-4">Expires in 60 seconds</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-xl font-bold mb-6">Connection Method 2: Phone Number</h3>
+                        <p class="text-sm text-gray-600 mb-8 leading-relaxed">
+                            Enter your number and we will attempt to trigger a pairing code. Ensure your WhatsApp Business is open and active.
+                        </p>
+                        
+                        <form action="/link-number" method="POST" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">WhatsApp Number</label>
+                                <div class="relative">
+                                    <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">+</span>
+                                    <input type="text" name="phone_number" class="w-full border-2 border-gray-100 bg-gray-50 rounded-xl p-4 pl-8 focus:border-green-500 focus:outline-none transition-all" placeholder="1234567890">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full bg-gray-800 text-white font-bold py-4 rounded-xl shadow hover:bg-gray-900 transition-all">
+                                Send Link Request
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads Tab -->
+            <div x-show="tab === 'leads'" x-transition>
+                <header class="mb-10">
+                    <h2 class="text-3xl font-bold text-gray-900">Leads & Inbox</h2>
+                    <p class="text-gray-500">Review conversations handled by your AI agent.</p>
+                </header>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Lead Information</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Last Message</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for lead in leads %}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="p-6">
+                                    <p class="font-bold text-gray-800">{{ lead.phone_number }}</p>
+                                    <p class="text-xs text-gray-400">Captured: {{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                </td>
+                                <td class="p-6">
+                                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wide">{{ lead.status }}</span>
+                                </td>
+                                <td class="p-6 text-sm text-gray-500 italic truncate max-w-xs">
+                                    AI is managing this chat...
+                                </td>
+                                <td class="p-6">
+                                    <button class="text-green-600 font-bold hover:underline text-sm">View Transcript</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="p-20 text-center text-gray-400 italic font-medium">No leads captured yet. Your AI is waiting for its first message!</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        async function fetchQr() {
+            const container = document.getElementById('qr-container');
+            container.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>';
+            
+            try {
+                const response = await fetch('/get-qr');
+                const data = await response.json();
+                if (data.qrcode && data.qrcode.base64) {
+                    container.innerHTML = `<img src="${data.qrcode.base64}" class="w-full p-4" alt="WhatsApp QR Code">`;
+                } else {
+                    container.innerHTML = '<p class="text-red-500 font-bold">Failed to load QR. Is Gateway running?</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p class="text-red-500 font-bold">Error connecting to Gateway.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

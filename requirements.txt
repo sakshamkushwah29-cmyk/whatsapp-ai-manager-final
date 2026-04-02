@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+bytez
+sqlalchemy
+python-dotenv
+jinja2
+httpx
+pydantic
+pydantic-settings
+python-multipart
+aiosqlite

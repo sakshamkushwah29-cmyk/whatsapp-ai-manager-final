@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+whatsapp_manager.db
+.DS_Store
