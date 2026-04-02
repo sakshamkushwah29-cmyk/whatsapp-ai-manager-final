@@ -1,9 +1,9 @@
 import os
 import uvicorn
-from fastapi import FastAPI, Request, Form, Depends, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, Form, Depends, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -16,31 +16,24 @@ load_dotenv()
 
 app = FastAPI(title="WhatsApp AI Manager Business Pro")
 
-# --- PATH LOGIC START ---
-# We calculate paths relative to the root of the project to be safe for Vercel.
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(APP_DIR)
-TEMPLATES_DIR = os.path.join(APP_DIR, "templates")
-STATIC_DIR = os.path.join(APP_DIR, "static")
+# --- PRO-FIX PATH LOGIC ---
+# We now look for templates/static in the ROOT directory (where api/ and app/ are)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+static_path = os.path.join(BASE_DIR, "static")
+templates_path = os.path.join(BASE_DIR, "templates")
 
-# If on Vercel, paths can be tricky. We'll check multiple locations if needed.
-if not os.path.exists(TEMPLATES_DIR):
-    TEMPLATES_DIR = "/var/task/app/templates" # Vercel default task path
+# Debugging for Vercel
+print(f"DEBUG: ROOT BASE_DIR is {BASE_DIR}")
 
-if not os.path.exists(STATIC_DIR):
-    STATIC_DIR = "/var/task/app/static"
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-# Mount Static if it exists
-if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-# Initialize Templates
-if os.path.exists(TEMPLATES_DIR):
-    templates = Jinja2Templates(directory=TEMPLATES_DIR)
+if os.path.exists(templates_path):
+    templates = Jinja2Templates(directory=templates_path)
 else:
-    # This will be caught by the except block in api/index.py if it crashes here
-    raise Exception(f"CRITICAL: Templates directory not found at {TEMPLATES_DIR}")
-# --- PATH LOGIC END ---
+    # Fallback to absolute Vercel path if relative fails
+    templates_path = "/var/task/templates"
+    templates = Jinja2Templates(directory=templates_path)
 
 def get_db():
     db = SessionLocal()
@@ -69,8 +62,12 @@ def startup_init():
     except Exception as e:
         print(f"Startup DB Error: {e}")
 
-# Run once during module import
+# Run setup
 startup_init()
+
+@app.get("/ping")
+async def ping():
+    return {"status": "ok", "message": "Backend is alive!"}
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -87,9 +84,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         })
     except Exception as e:
         import traceback
-        err = traceback.format_exc()
         return HTMLResponse(
-            content=f"<html><body style='padding:50px; font-family:sans-serif;'><h1>❌ Dashboard Error</h1><pre style='background:#f1f1f1; padding:20px;'>{err}</pre></body></html>",
+            content=f"<html><body><h1>❌ Dashboard Render Error</h1><pre>{traceback.format_exc()}</pre></body></html>",
             status_code=500
         )
 
@@ -103,33 +99,27 @@ async def update_wizard(
     greeting_message: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    try:
-        profile = db.query(BusinessProfile).first()
-        if not profile:
-            profile = BusinessProfile()
-            db.add(profile)
-            
-        profile.brand_name = brand_name
-        profile.website_link = website_link
-        profile.brand_tone = brand_tone
-        profile.primary_goal = primary_goal
-        profile.common_objections = common_objections
-        profile.greeting_message = greeting_message
-        db.commit()
-    except Exception as e:
-        print(f"Update Wizard Error: {e}")
+    profile = db.query(BusinessProfile).first()
+    if not profile:
+        profile = BusinessProfile()
+        db.add(profile)
+        
+    profile.brand_name = brand_name
+    profile.website_link = website_link
+    profile.brand_tone = brand_tone
+    profile.primary_goal = primary_goal
+    profile.common_objections = common_objections
+    profile.greeting_message = greeting_message
+    db.commit()
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload-knowledge")
 async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    try:
-        content = await file.read()
-        text_content = content.decode('utf-8', errors='ignore')
-        new_file = KnowledgeFile(filename=file.filename, content=text_content)
-        db.add(new_file)
-        db.commit()
-    except Exception as e:
-        print(f"Upload Error: {e}")
+    content = await file.read()
+    text_content = content.decode('utf-8', errors='ignore')
+    new_file = KnowledgeFile(filename=file.filename, content=text_content)
+    db.add(new_file)
+    db.commit()
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/get-qr")
