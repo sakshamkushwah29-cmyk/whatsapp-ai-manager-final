@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-# For Vercel, use /tmp/ for the database as the rest of the filesystem is read-only
+# For Vercel, use /tmp/ as it's the only writable directory
 if os.environ.get("VERCEL"):
     DATABASE_URL = "sqlite:////tmp/whatsapp_manager.db"
 else:
@@ -51,4 +51,7 @@ class Message(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Error initializing DB: {e}")

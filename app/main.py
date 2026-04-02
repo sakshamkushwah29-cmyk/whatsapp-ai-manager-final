@@ -17,8 +17,14 @@ app = FastAPI(title="WhatsApp AI Manager Pro")
 
 # Use absolute paths for templates and static to ensure they work on Vercel
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+static_dir = os.path.join(BASE_DIR, "static")
+templates_dir = os.path.join(BASE_DIR, "templates")
+
+# Only mount if the directory exists
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates = Jinja2Templates(directory=templates_dir)
 
 def get_db():
     db = SessionLocal()
@@ -27,33 +33,43 @@ def get_db():
     finally:
         db.close()
 
-# Ensure DB is initialized during import for Vercel startup
-init_db()
-db_startup = SessionLocal()
-if not db_startup.query(BusinessProfile).first():
-    profile = BusinessProfile(
-        brand_name="My Brand",
-        website_link="https://mysite.com",
-        brand_tone="Professional",
-        primary_goal="Help customers",
-        common_objections="None",
-        greeting_message="Hi! How can I help?"
-    )
-    db_startup.add(profile)
-    db_startup.commit()
-db_startup.close()
+# Improved startup with more logging and try-except
+def initialize_app_data():
+    try:
+        init_db()
+        db = SessionLocal()
+        if not db.query(BusinessProfile).first():
+            profile = BusinessProfile(
+                brand_name="My Brand",
+                website_link="https://mysite.com",
+                brand_tone="Professional",
+                primary_goal="Help customers",
+                common_objections="None",
+                greeting_message="Hi! How can I help?"
+            )
+            db.add(profile)
+            db.commit()
+        db.close()
+    except Exception as e:
+        print(f"Startup error: {e}")
+
+# Run startup once
+initialize_app_data()
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
-    profile = db.query(BusinessProfile).first()
-    files = db.query(KnowledgeFile).all()
-    leads = db.query(Lead).all()
-    return templates.TemplateResponse("index.html", {
-        "request": request, 
-        "profile": profile, 
-        "files": files, 
-        "leads": leads
-    })
+    try:
+        profile = db.query(BusinessProfile).first()
+        files = db.query(KnowledgeFile).all()
+        leads = db.query(Lead).all()
+        return templates.TemplateResponse("index.html", {
+            "request": request, 
+            "profile": profile, 
+            "files": files, 
+            "leads": leads
+        })
+    except Exception as e:
+        return HTMLResponse(content=f"Error loading dashboard: {str(e)}", status_code=500)
 
 @app.post("/update-wizard")
 async def update_wizard(
@@ -86,7 +102,10 @@ async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(g
 
 @app.get("/get-qr")
 async def get_qr():
-    return await whatsapp_service.get_qr_code("Main")
+    try:
+        return await whatsapp_service.get_qr_code("Main")
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/webhook")
 async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
@@ -112,7 +131,6 @@ async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
             db.add(Message(lead_id=lead.id, role="user", content=text))
             db.commit()
 
-            # Prepare AI Input
             profile = db.query(BusinessProfile).first()
             all_files = db.query(KnowledgeFile).all()
             knowledge_base = "\n---\n".join([f.content for f in all_files])
