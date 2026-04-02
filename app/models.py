@@ -4,13 +4,20 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-# For Vercel, use /tmp/ as it's the only writable directory
-if os.environ.get("VERCEL"):
-    DATABASE_URL = "sqlite:////tmp/whatsapp_manager.db"
-else:
-    DATABASE_URL = "sqlite:///./whatsapp_manager.db"
+# Robust DATABASE_URL selection
+# Vercel needs /tmp/ for SQLite
+def get_database_url():
+    if os.environ.get("VERCEL"):
+        return "sqlite:////tmp/whatsapp_manager.db"
+    return "sqlite:///./whatsapp_manager.db"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = get_database_url()
+
+engine = create_engine(
+    DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    pool_pre_ping=True # Keep connection healthy
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -53,5 +60,7 @@ class Message(Base):
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
+        return True
     except Exception as e:
-        print(f"Error initializing DB: {e}")
+        print(f"Error creating tables: {e}")
+        return False

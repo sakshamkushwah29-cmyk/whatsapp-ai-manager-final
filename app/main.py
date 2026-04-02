@@ -1,6 +1,6 @@
 import os
 import uvicorn
-from fastapi import FastAPI, Request, Form, Depends, UploadFile, File
+from fastapi import FastAPI, Request, Form, Depends, UploadFile, File, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,20 +11,25 @@ from app.models import init_db, SessionLocal, Lead, Message, BusinessProfile, Kn
 from app.ai_service import ai_service
 from app.whatsapp_service import whatsapp_service
 
+# Load env but keep going if .env is missing (Vercel uses its own settings)
 load_dotenv()
 
 app = FastAPI(title="WhatsApp AI Manager Pro")
 
-# Use absolute paths for templates and static to ensure they work on Vercel
+# Ensure BASE_DIR is correct for both local and Vercel
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(BASE_DIR, "static")
-templates_dir = os.path.join(BASE_DIR, "templates")
+static_path = os.path.join(BASE_DIR, "static")
+templates_path = os.path.join(BASE_DIR, "templates")
 
-# Only mount if the directory exists
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Debugging logs for Vercel startup
+print(f"Startup - BASE_DIR: {BASE_DIR}")
+print(f"Startup - Templates: {templates_path}")
 
-templates = Jinja2Templates(directory=templates_dir)
+# Optional static mount
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
+
+templates = Jinja2Templates(directory=templates_path)
 
 def get_db():
     db = SessionLocal()
@@ -33,8 +38,8 @@ def get_db():
     finally:
         db.close()
 
-# Improved startup with more logging and try-except
-def initialize_app_data():
+# Ensure database is set up on cold-start
+def setup_initial_data():
     try:
         init_db()
         db = SessionLocal()
@@ -51,10 +56,10 @@ def initialize_app_data():
             db.commit()
         db.close()
     except Exception as e:
-        print(f"Startup error: {e}")
+        print(f"Startup DB Error: {e}")
 
-# Run startup once
-initialize_app_data()
+# Run setup
+setup_initial_data()
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -62,6 +67,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         profile = db.query(BusinessProfile).first()
         files = db.query(KnowledgeFile).all()
         leads = db.query(Lead).all()
+        
         return templates.TemplateResponse("index.html", {
             "request": request, 
             "profile": profile, 
@@ -69,7 +75,11 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "leads": leads
         })
     except Exception as e:
-        return HTMLResponse(content=f"Error loading dashboard: {str(e)}", status_code=500)
+        # Fallback for dashboard error
+        return HTMLResponse(
+            content=f"<html><body><h1>Dashboard Error</h1><p>{str(e)}</p></body></html>",
+            status_code=500
+        )
 
 @app.post("/update-wizard")
 async def update_wizard(
@@ -81,23 +91,33 @@ async def update_wizard(
     greeting_message: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(BusinessProfile).first()
-    profile.brand_name = brand_name
-    profile.website_link = website_link
-    profile.brand_tone = brand_tone
-    profile.primary_goal = primary_goal
-    profile.common_objections = common_objections
-    profile.greeting_message = greeting_message
-    db.commit()
+    try:
+        profile = db.query(BusinessProfile).first()
+        if not profile:
+            profile = BusinessProfile()
+            db.add(profile)
+            
+        profile.brand_name = brand_name
+        profile.website_link = website_link
+        profile.brand_tone = brand_tone
+        profile.primary_goal = primary_goal
+        profile.common_objections = common_objections
+        profile.greeting_message = greeting_message
+        db.commit()
+    except Exception as e:
+        print(f"Wizard update error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload-knowledge")
 async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    content = await file.read()
-    text_content = content.decode('utf-8', errors='ignore')
-    new_file = KnowledgeFile(filename=file.filename, content=text_content)
-    db.add(new_file)
-    db.commit()
+    try:
+        content = await file.read()
+        text_content = content.decode('utf-8', errors='ignore')
+        new_file = KnowledgeFile(filename=file.filename, content=text_content)
+        db.add(new_file)
+        db.commit()
+    except Exception as e:
+        print(f"Knowledge upload error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/get-qr")
@@ -105,7 +125,7 @@ async def get_qr():
     try:
         return await whatsapp_service.get_qr_code("Main")
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Gateway Error: {str(e)}"}
 
 @app.post("/webhook")
 async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
