@@ -4,20 +4,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-# Robust DATABASE_URL selection
-# Vercel needs /tmp/ for SQLite
-def get_database_url():
-    if os.environ.get("VERCEL"):
-        return "sqlite:////tmp/whatsapp_manager.db"
-    return "sqlite:///./whatsapp_manager.db"
+# Vercel-friendly Database Path
+if os.environ.get("VERCEL"):
+    DATABASE_URL = "sqlite:////tmp/whatsapp_manager.db"
+else:
+    DATABASE_URL = "sqlite:///./whatsapp_manager.db"
 
-DATABASE_URL = get_database_url()
-
-engine = create_engine(
-    DATABASE_URL, 
-    connect_args={"check_same_thread": False},
-    pool_pre_ping=True # Keep connection healthy
-)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -31,6 +24,9 @@ class BusinessProfile(Base):
     primary_goal = Column(Text)
     common_objections = Column(Text)
     greeting_message = Column(Text)
+    # GATEWAY SETTINGS (Crucial for Vercel)
+    gateway_url = Column(String, nullable=True)
+    gateway_api_key = Column(String, nullable=True)
     whatsapp_number = Column(String, nullable=True)
     is_connected = Column(Boolean, default=False)
 
@@ -58,9 +54,4 @@ class Message(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 def init_db():
-    try:
-        Base.metadata.create_all(bind=engine)
-        return True
-    except Exception as e:
-        print(f"Error creating tables: {e}")
-        return False
+    Base.metadata.create_all(bind=engine)

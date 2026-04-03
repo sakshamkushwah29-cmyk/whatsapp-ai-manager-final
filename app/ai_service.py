@@ -1,59 +1,54 @@
 import os
-from bytez import Bytez
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
 
 class AIService:
     def __init__(self):
-        self.key = os.getenv("BYTEZ_KEY")
-        self.sdk = Bytez(self.key)
-        self.model_name = "Qwen/Qwen3-0.6B"
-        self.model = self.sdk.model(self.model_name)
+        self.api_key = os.getenv("BYTEZ_KEY")
+        self.base_url = "https://api.bytez.com/models/v2/Qwen/Qwen3-4B"
 
-    def generate_response(self, user_message: str, history: list = None, profile: object = None, knowledge: str = ""):
-        """
-        profile: BusinessProfile object from DB
-        knowledge: Combined text from all uploaded files
-        """
+    async def generate_response(self, user_message: str, history: list = None, profile: object = None, knowledge: str = ""):
         system_prompt = f"""
-        You are an expert AI assistant for {profile.brand_name}.
+        You are the AI assistant for {profile.brand_name}.
         Website: {profile.website_link}
+        Goal: {profile.primary_goal}
+        Tone: {profile.brand_tone}
+        Greeting: {profile.greeting_message}
+        Objections: {profile.common_objections}
+        Knowledge: {knowledge}
         
-        YOUR PRIMARY GOAL:
-        {profile.primary_goal}
-        
-        TONE & PERSONALITY:
-        {profile.brand_tone}
-        
-        GREETING STYLE:
-        {profile.greeting_message}
-        
-        HANDLING OBJECTIONS:
-        {profile.common_objections}
-        
-        BUSINESS KNOWLEDGE BASE (USE THIS TO ANSWER):
-        {knowledge}
-        
-        RULES:
-        1. Keep responses concise and naturally conversational for WhatsApp.
-        2. If you don't know an answer, don't make it up. Refer to the knowledge base or ask them to wait for a human.
-        3. Always guide the user towards the Primary Goal.
+        Keep it WhatsApp-friendly, short, and effective.
         """
 
         messages = [{"role": "system", "content": system_prompt}]
-        
-        if history:
-            messages.extend(history)
-            
+        if history: messages.extend(history)
         messages.append({"role": "user", "content": user_message})
 
-        try:
-            results = self.model.run(messages)
-            if results.error:
-                return f"I'm sorry, I'm having a technical issue. Please try again in a moment."
-            return results.output
-        except Exception:
-            return "I'm currently busy helping other customers. Please wait a moment."
+        payload = {
+            "messages": messages,
+            "stream": False,
+            "params": {
+                "temperature": 0.7,
+                "max_length": 500
+            }
+        }
+
+        headers = {
+            "Authorization": self.api_key,
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(self.base_url, json=payload, headers=headers, timeout=30.0)
+                result = response.json()
+                if "output" in result and "content" in result["output"]:
+                    return result["output"]["content"]
+                return "I'm processing your request, please hold on."
+            except Exception as e:
+                print(f"AI Error: {e}")
+                return "Our team is currently busy. Please wait a moment."
 
 ai_service = AIService()
