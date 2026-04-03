@@ -17,12 +17,10 @@ load_dotenv()
 app = FastAPI(title="WhatsApp AI Manager Business Pro")
 
 # --- PRO-FIX PATH LOGIC ---
-# Calculate paths relative to this file
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")
 
-# On Vercel, the structure might be different
 if not os.path.exists(templates_path):
     templates_path = os.path.join(os.getcwd(), "templates")
 
@@ -72,7 +70,6 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         files = db.query(KnowledgeFile).all()
         leads = db.query(Lead).all()
         
-        # FIX: Pass request as a keyword argument to TemplateResponse
         return templates.TemplateResponse(
             request=request, 
             name="index.html", 
@@ -127,6 +124,17 @@ async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(g
         db.commit()
     except Exception as e:
         print(f"Upload Error: {e}")
+    return RedirectResponse(url="/", status_code=303)
+
+@app.post("/delete-knowledge/{file_id}")
+async def delete_knowledge(file_id: int, db: Session = Depends(get_db)):
+    try:
+        file_obj = db.query(KnowledgeFile).filter(KnowledgeFile.id == file_id).first()
+        if file_obj:
+            db.delete(file_obj)
+            db.commit()
+    except Exception as e:
+        print(f"Delete Error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/get-qr")

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI WhatsApp Manager - Pro</title>
+    <title>Leverage Logic Ventures - AI Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -12,10 +12,10 @@
         <!-- Sidebar -->
         <div class="w-64 bg-green-700 text-white flex flex-col shadow-xl">
             <div class="p-6">
-                <h1 class="text-2xl font-bold flex items-center">
-                    <span class="mr-2">💬</span> AI Manager
+                <h1 class="text-xl font-bold flex items-center">
+                    <span class="mr-2">💬</span> Leverage Logic
                 </h1>
-                <p class="text-xs text-green-200 mt-1 uppercase tracking-widest font-semibold">Business Pro</p>
+                <p class="text-xs text-green-200 mt-1 uppercase tracking-widest font-semibold">Ventures Pro</p>
             </div>
             
             <nav class="flex-1 mt-4 px-4 space-y-2">
@@ -36,7 +36,7 @@
             <div class="p-6 bg-green-800">
                 <div class="flex items-center text-xs space-x-2">
                     <div class="w-2 h-2 rounded-full bg-green-400"></div>
-                    <span>Local Server: :3000</span>
+                    <span>Cloud Engine: Active</span>
                 </div>
             </div>
         </div>
@@ -124,7 +124,13 @@
                                         <p class="text-xs text-gray-400">Added on {{ file.created_at.strftime('%Y-%m-%d') }}</p>
                                     </div>
                                 </div>
-                                <button class="text-red-400 hover:text-red-600 p-2">🗑️</button>
+                                <form action="/delete-knowledge/{{ file.id }}" method="POST">
+                                    <button type="submit" class="text-red-400 hover:text-red-600 p-2 transition-colors" title="Delete File">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </form>
                             </div>
                             {% else %}
                             <div class="p-12 text-center text-gray-400">No documents uploaded yet.</div>
@@ -145,13 +151,13 @@
                     <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                         <h3 class="text-xl font-bold mb-6">Connection Method 1: QR Scan</h3>
                         <p class="text-sm text-gray-600 mb-8 leading-relaxed">
-                            The most stable way to link. Open WhatsApp on your business phone, go to **Linked Devices**, and scan the QR code that will appear below.
+                            Open WhatsApp on your business phone, go to **Linked Devices**, and scan the QR code.
                         </p>
                         
                         <div id="qr-container" class="aspect-square bg-gray-100 rounded-xl flex items-center justify-center border-2 border-gray-50 mb-6">
                             <div class="text-center p-6">
                                 <button onclick="fetchQr()" class="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow hover:bg-green-700 transition-all">
-                                    Generate Link QR
+                                    Generate QR Code
                                 </button>
                                 <p class="text-xs text-gray-400 mt-4">Expires in 60 seconds</p>
                             </div>
@@ -161,7 +167,7 @@
                     <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                         <h3 class="text-xl font-bold mb-6">Connection Method 2: Phone Number</h3>
                         <p class="text-sm text-gray-600 mb-8 leading-relaxed">
-                            Enter your number and we will attempt to trigger a pairing code. Ensure your WhatsApp Business is open and active.
+                            Enter your number to trigger a pairing code.
                         </p>
                         
                         <form action="/link-number" method="POST" class="space-y-4">
@@ -193,7 +199,6 @@
                             <tr>
                                 <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Lead Information</th>
                                 <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Last Message</th>
                                 <th class="p-6 text-xs font-bold text-gray-400 uppercase tracking-widest">Action</th>
                             </tr>
                         </thead>
@@ -207,16 +212,13 @@
                                 <td class="p-6">
                                     <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wide">{{ lead.status }}</span>
                                 </td>
-                                <td class="p-6 text-sm text-gray-500 italic truncate max-w-xs">
-                                    AI is managing this chat...
-                                </td>
                                 <td class="p-6">
                                     <button class="text-green-600 font-bold hover:underline text-sm">View Transcript</button>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="p-20 text-center text-gray-400 italic font-medium">No leads captured yet. Your AI is waiting for its first message!</td>
+                                <td colspan="3" class="p-20 text-center text-gray-400 italic font-medium">No leads captured yet. Your AI is waiting for its first message!</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -230,7 +232,7 @@
     <script>
         async function fetchQr() {
             const container = document.getElementById('qr-container');
-            container.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>';
+            container.innerHTML = '<div class="flex flex-col items-center"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mb-4"></div><p class="text-sm text-gray-500">Connecting to WhatsApp Gateway...</p></div>';
             
             try {
                 const response = await fetch('/get-qr');
@@ -238,10 +240,10 @@
                 if (data.qrcode && data.qrcode.base64) {
                     container.innerHTML = `<img src="${data.qrcode.base64}" class="w-full p-4" alt="WhatsApp QR Code">`;
                 } else {
-                    container.innerHTML = '<p class="text-red-500 font-bold">Failed to load QR. Is Gateway running?</p>';
+                    container.innerHTML = '<div class="text-center p-6"><p class="text-red-500 font-bold mb-4">Failed to load QR.</p><button onclick="fetchQr()" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300">Retry Connection</button></div>';
                 }
             } catch (e) {
-                container.innerHTML = '<p class="text-red-500 font-bold">Error connecting to Gateway.</p>';
+                container.innerHTML = '<p class="text-red-500 font-bold text-center">Error connecting to WhatsApp Gateway.</p>';
             }
         }
     </script>
