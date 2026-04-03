@@ -1,6 +1,6 @@
 import os
 import uvicorn
-from fastapi import FastAPI, Request, Form, Depends, UploadFile, File
+from fastapi import FastAPI, Request, Form, Depends, UploadFile, File, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -17,23 +17,19 @@ load_dotenv()
 app = FastAPI(title="WhatsApp AI Manager Business Pro")
 
 # --- PRO-FIX PATH LOGIC ---
-# We now look for templates/static in the ROOT directory (where api/ and app/ are)
+# Calculate paths relative to this file
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 static_path = os.path.join(BASE_DIR, "static")
 templates_path = os.path.join(BASE_DIR, "templates")
 
-# Debugging for Vercel
-print(f"DEBUG: ROOT BASE_DIR is {BASE_DIR}")
+# On Vercel, the structure might be different
+if not os.path.exists(templates_path):
+    templates_path = os.path.join(os.getcwd(), "templates")
 
 if os.path.exists(static_path):
     app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-if os.path.exists(templates_path):
-    templates = Jinja2Templates(directory=templates_path)
-else:
-    # Fallback to absolute Vercel path if relative fails
-    templates_path = "/var/task/templates"
-    templates = Jinja2Templates(directory=templates_path)
+templates = Jinja2Templates(directory=templates_path)
 
 def get_db():
     db = SessionLocal()
@@ -76,16 +72,21 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         files = db.query(KnowledgeFile).all()
         leads = db.query(Lead).all()
         
-        return templates.TemplateResponse("index.html", {
-            "request": request, 
-            "profile": profile, 
-            "files": files, 
-            "leads": leads
-        })
+        # FIX: Pass request as a keyword argument to TemplateResponse
+        return templates.TemplateResponse(
+            request=request, 
+            name="index.html", 
+            context={
+                "profile": profile, 
+                "files": files, 
+                "leads": leads
+            }
+        )
     except Exception as e:
         import traceback
+        err = traceback.format_exc()
         return HTMLResponse(
-            content=f"<html><body><h1>❌ Dashboard Render Error</h1><pre>{traceback.format_exc()}</pre></body></html>",
+            content=f"<html><body style='padding:50px; font-family:sans-serif;'><h1>❌ Dashboard Error</h1><pre style='background:#f1f1f1; padding:20px;'>{err}</pre></body></html>",
             status_code=500
         )
 
@@ -99,27 +100,33 @@ async def update_wizard(
     greeting_message: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(BusinessProfile).first()
-    if not profile:
-        profile = BusinessProfile()
-        db.add(profile)
-        
-    profile.brand_name = brand_name
-    profile.website_link = website_link
-    profile.brand_tone = brand_tone
-    profile.primary_goal = primary_goal
-    profile.common_objections = common_objections
-    profile.greeting_message = greeting_message
-    db.commit()
+    try:
+        profile = db.query(BusinessProfile).first()
+        if not profile:
+            profile = BusinessProfile()
+            db.add(profile)
+            
+        profile.brand_name = brand_name
+        profile.website_link = website_link
+        profile.brand_tone = brand_tone
+        profile.primary_goal = primary_goal
+        profile.common_objections = common_objections
+        profile.greeting_message = greeting_message
+        db.commit()
+    except Exception as e:
+        print(f"Update Wizard Error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/upload-knowledge")
 async def upload_knowledge(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    content = await file.read()
-    text_content = content.decode('utf-8', errors='ignore')
-    new_file = KnowledgeFile(filename=file.filename, content=text_content)
-    db.add(new_file)
-    db.commit()
+    try:
+        content = await file.read()
+        text_content = content.decode('utf-8', errors='ignore')
+        new_file = KnowledgeFile(filename=file.filename, content=text_content)
+        db.add(new_file)
+        db.commit()
+    except Exception as e:
+        print(f"Upload Error: {e}")
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/get-qr")
