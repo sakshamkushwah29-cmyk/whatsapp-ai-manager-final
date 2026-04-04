@@ -1,0 +1,14 @@
+{
+  "name": "wedding-mediaaa-whatsapp-agent",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "nodemon backend/server.js",
+    "dev:frontend": "cd frontend && vite",
+    "build": "cd frontend && vite build",
+    "start": "node backend/server.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
