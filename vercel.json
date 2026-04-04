@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/backend/server.js" }
+  ],
+  "functions": {
+    "backend/server.js": {
+      "maxDuration": 60
+    }
+  }
+}

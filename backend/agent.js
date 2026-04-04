@@ -61,20 +61,20 @@ NEVER:
 
 const handleIncomingMessage = async (phone, messageText, messageType) => {
   // Update leads db
-  db.upsertLead(phone);
+  await db.upsertLead(phone);
   
   // Save user msg
-  db.saveMessage(phone, 'user', messageText);
+  await db.saveMessage(phone, 'user', messageText);
   
   // Get history
-  const rawHistory = db.getConversation(phone, 20);
+  const rawHistory = await db.getConversation(phone, 20);
   const messages = rawHistory.map(msg => ({
     role: msg.role,
     content: msg.content
   }));
   
-  const leads = db.getAllLeads();
-  const currentLead = leads.find(l => l.phone === phone);
+  const allLeads = await db.getAllLeads();
+  const currentLead = allLeads.find(l => l.phone === phone);
   
   try {
     const response = await anthropic.messages.create({
@@ -92,20 +92,20 @@ const handleIncomingMessage = async (phone, messageText, messageType) => {
     
     if (ctaTriggered) {
       await whatsapp.sendCTAMessage(phone);
-      db.updateLeadStatus(phone, 'cta_sent');
-      db.saveMessage(phone, 'assistant', '[CTA Sent via System]');
+      await db.updateLeadStatus(phone, 'cta_sent');
+      await db.saveMessage(phone, 'assistant', '[CTA Sent via System]');
     } else {
       await whatsapp.sendTextMessage(phone, aiRespText);
-      db.saveMessage(phone, 'assistant', aiRespText);
+      await db.saveMessage(phone, 'assistant', aiRespText);
       
       // If 2 messages, send brochure
-      if (currentLead.message_count === 1) { // After this function completes, it will be 2
+      if (currentLead && currentLead.message_count === 1) { 
         const backendUrl = process.env.BACKEND_URL || \`http://localhost:\${process.env.PORT || 3001}\`;
         const brochureUrl = \`\${backendUrl}/brochure.pdf\`;
         await whatsapp.sendDocument(phone, brochureUrl, 'Here is our Wedding Mediaaa Portfolio! 📸✨');
-        db.updateLeadStatus(phone, 'brochure_sent');
-      } else if (currentLead.status === 'new') {
-        db.updateLeadStatus(phone, 'engaged');
+        await db.updateLeadStatus(phone, 'brochure_sent');
+      } else if (currentLead && currentLead.status === 'new') {
+        await db.updateLeadStatus(phone, 'engaged');
       }
     }
   } catch (err) {

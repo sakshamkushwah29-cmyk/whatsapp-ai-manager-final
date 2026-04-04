@@ -15,8 +15,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Set up brochure upload
-const uploadDir = path.join(__dirname, '..', 'uploads');
+// Set up brochure upload (Vercel uses /tmp)
+const uploadDir = os.environ.get('VERCEL') ? '/tmp' : path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -47,7 +47,7 @@ app.get('/webhook', (req, res) => {
 });
 
 // Receive Messages (POST)
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
   const body = req.body;
   if (body.object) {
     if (body.entry && body.entry[0].changes && body.entry[0].changes[0] && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
@@ -69,8 +69,8 @@ app.post('/webhook', (req, res) => {
       }
       
       if (messageText) {
-        agent.handleIncomingMessage(from, messageText, type);
-        whatsapp.markAsRead(message.id);
+        await agent.handleIncomingMessage(from, messageText, type);
+        await whatsapp.markAsRead(message.id);
       }
     }
     res.sendStatus(200);
@@ -90,18 +90,18 @@ app.post('/admin/upload-brochure', upload.single('file'), (req, res) => {
   res.json({ status: 'success', message: 'Brochure uploaded successfully.' });
 });
 
-app.get('/admin/leads', (req, res) => {
+app.get('/admin/leads', async (req, res) => {
   try {
-    const leads = db.getAllLeads();
+    const leads = await db.getAllLeads();
     res.json(leads);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/admin/conversation/:phone', (req, res) => {
+app.get('/admin/conversation/:phone', async (req, res) => {
   try {
-    const history = db.getConversation(req.params.phone, 100);
+    const history = await db.getConversation(req.params.phone, 100);
     res.json(history);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -112,23 +112,27 @@ app.post('/admin/send-manual', async (req, res) => {
   try {
     const { phone, message } = req.body;
     await whatsapp.sendTextMessage(phone, message);
-    db.saveMessage(phone, 'assistant', message);
+    await db.saveMessage(phone, 'assistant', message);
     res.json({ status: 'success' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/admin/update-status', (req, res) => {
+app.post('/admin/update-status', async (req, res) => {
   try {
     const { phone, status } = req.body;
-    db.updateLeadStatus(phone, status);
+    await db.updateLeadStatus(phone, status);
     res.json({ status: 'success' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Backend server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
